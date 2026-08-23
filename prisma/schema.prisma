@@ -1,0 +1,73 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum MatchStatus {
+  OPEN
+  CLOSED
+}
+
+model Player {
+  id               String        @id @default(cuid())
+  name             String
+  rating           Float         @default(3)
+  totalWins        Int           @default(0)
+  totalGoals       Int           @default(0)
+  totalAssists     Int           @default(0)
+  topScorerCount   Int           @default(0)
+  topAssisterCount Int           @default(0)
+  matchesPlayed    Int           @default(0)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  matchPlayers     MatchPlayer[]
+
+  @@index([name])
+}
+
+model Match {
+  id                  String        @id @default(uuid())
+  date                DateTime
+  status              MatchStatus   @default(OPEN)
+  penaltyWinnerTeamId String?
+  championTeamId      String?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  teams               MatchTeam[]
+  players             MatchPlayer[]
+
+  @@index([date])
+}
+
+model MatchTeam {
+  id       String        @id @default(cuid())
+  matchId  String
+  name     String
+  position Int           @default(0)
+  wins     Int           @default(0)
+  draws    Int           @default(0)
+  match    Match         @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  players  MatchPlayer[]
+
+  @@index([matchId])
+}
+
+model MatchPlayer {
+  id          String    @id @default(cuid())
+  matchId     String
+  matchTeamId String
+  playerId    String
+  goals       Int       @default(0)
+  assists     Int       @default(0)
+  match       Match     @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  team        MatchTeam @relation(fields: [matchTeamId], references: [id], onDelete: Cascade)
+  player      Player    @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([matchId, playerId])
+  @@index([matchTeamId])
+  @@index([playerId])
+}
