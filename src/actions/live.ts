@@ -1,14 +1,16 @@
 'use server'
 
+import { Prisma } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
 import { resolveChampion } from '@/lib/champion'
 import { loadMatchState } from '@/lib/match-state'
+import { isValidDelta } from '@/lib/optimistic'
 import { broadcastMatch } from '@/lib/pusher'
 import { prisma } from '@/lib/prisma'
+import type { PlayerStat, TeamStat } from '@/lib/optimistic'
 import type { ActionResult, MatchState } from '@/lib/types'
 
-export type PlayerStat = 'goals' | 'assists'
-export type TeamStat = 'wins' | 'draws'
+export type { PlayerStat, TeamStat }
 
 async function publish(matchId: string): Promise<ActionResult<MatchState>> {
   const state = await loadMatchState(matchId)
@@ -18,6 +20,21 @@ async function publish(matchId: string): Promise<ActionResult<MatchState>> {
   revalidatePath(`/pelada/${matchId}`)
 
   return { ok: true, data: state }
+}
+
+function bumpVersion(matchId: string, data: Prisma.MatchUpdateInput = {}) {
+  return prisma.match.update({
+    where: { id: matchId },
+    data: { ...data, version: { increment: 1 } },
+  })
+}
+
+function incrementClamped(table: 'MatchPlayer' | 'MatchTeam', column: string, id: string, delta: number) {
+  const target = Prisma.raw(`"${column}"`)
+
+  return table === 'MatchPlayer'
+    ? prisma.$executeRaw`UPDATE "MatchPlayer" SET ${target} = GREATEST(0, ${target} + ${delta}::int) WHERE "id" = ${id}`
+    : prisma.$executeRaw`UPDATE "MatchTeam" SET ${target} = GREATEST(0, ${target} + ${delta}::int) WHERE "id" = ${id}`
 }
 
 export async function getMatchState(matchId: string): Promise<ActionResult<MatchState>> {
@@ -36,11 +53,13 @@ export async function updatePlayerStat(
       return { ok: false, error: 'Estatística inválida.' }
     }
 
-    const step = delta > 0 ? 1 : -1
+    if (!isValidDelta(delta)) {
+      return { ok: false, error: 'Variação inválida.' }
+    }
 
     const entry = await prisma.matchPlayer.findUnique({
       where: { id: matchPlayerId },
-      select: { id: true, matchId: true, goals: true, assists: true, match: { select: { status: true } } },
+      select: { id: true, matchId: true, match: { select: { status: true } } },
     })
 
     if (!entry) return { ok: false, error: 'Jogador não encontrado nesta pelada.' }
@@ -48,13 +67,10 @@ export async function updatePlayerStat(
       return { ok: false, error: 'Pelada encerrada. Reabra para editar.' }
     }
 
-    const next = Math.max(0, entry[stat] + step)
-    if (next !== entry[stat]) {
-      await prisma.matchPlayer.update({
-        where: { id: entry.id },
-        data: stat === 'goals' ? { goals: next } : { assists: next },
-      })
-    }
+    await prisma.$transaction([
+      incrementClamped('MatchPlayer', stat, entry.id, delta),
+      bumpVersion(entry.matchId),
+    ])
 
     return publish(entry.matchId)
   } catch (error) {
@@ -72,11 +88,13 @@ export async function updateTeamStat(
       return { ok: false, error: 'Estatística inválida.' }
     }
 
-    const step = delta > 0 ? 1 : -1
+    if (!isValidDelta(delta)) {
+      return { ok: false, error: 'Variação inválida.' }
+    }
 
     const team = await prisma.matchTeam.findUnique({
       where: { id: matchTeamId },
-      select: { id: true, matchId: true, wins: true, draws: true, match: { select: { status: true } } },
+      select: { id: true, matchId: true, match: { select: { status: true } } },
     })
 
     if (!team) return { ok: false, error: 'Time não encontrado.' }
@@ -84,16 +102,10 @@ export async function updateTeamStat(
       return { ok: false, error: 'Pelada encerrada. Reabra para editar.' }
     }
 
-    const next = Math.max(0, team[stat] + step)
-    if (next !== team[stat]) {
-      await prisma.$transaction([
-        prisma.matchTeam.update({
-          where: { id: team.id },
-          data: stat === 'wins' ? { wins: next } : { draws: next },
-        }),
-        prisma.match.update({ where: { id: team.matchId }, data: { penaltyWinnerTeamId: null } }),
-      ])
-    }
+    await prisma.$transaction([
+      incrementClamped('MatchTeam', stat, team.id, delta),
+      bumpVersion(team.matchId, { penaltyWinnerTeamId: null }),
+    ])
 
     return publish(team.matchId)
   } catch (error) {
@@ -121,10 +133,7 @@ export async function setPenaltyWinner(
       return { ok: false, error: 'Este time não está na disputa de pênaltis.' }
     }
 
-    await prisma.match.update({
-      where: { id: matchId },
-      data: { penaltyWinnerTeamId: matchTeamId },
-    })
+    await bumpVersion(matchId, { penaltyWinnerTeamId: matchTeamId })
 
     return publish(matchId)
   } catch (error) {

@@ -24,7 +24,7 @@ export default function ChampionBox() {
     if (!candidate) return
 
     mutate({
-      optimistic: (current) => ({ ...current, penaltyWinnerTeamId: candidate.id }),
+      preview: (current) => ({ ...current, penaltyWinnerTeamId: candidate.id }),
       action: () => setPenaltyWinner(state.id, candidate.id),
     })
 

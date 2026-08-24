@@ -22,6 +22,7 @@ export function serializeMatch(match: MatchWithRelations): MatchState {
     status: match.status,
     penaltyWinnerTeamId: match.penaltyWinnerTeamId,
     championTeamId: match.championTeamId,
+    version: match.version,
     teams: match.teams.map((team) => ({
       id: team.id,
       name: team.name,

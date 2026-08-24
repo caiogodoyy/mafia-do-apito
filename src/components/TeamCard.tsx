@@ -3,8 +3,7 @@
 import { Trophy } from 'lucide-react'
 import StatStepper from '@/components/StatStepper'
 import { useLiveMatch } from '@/components/PusherProvider'
-import { updatePlayerStat, updateTeamStat } from '@/actions/live'
-import { withPlayerStat, withTeamStat } from '@/lib/optimistic'
+import type { PlayerStat, TeamStat } from '@/lib/optimistic'
 import type { LiveTeam } from '@/lib/types'
 
 const TEAM_TONES = [
@@ -14,23 +13,17 @@ const TEAM_TONES = [
 ]
 
 export default function TeamCard({ team, index }: { team: LiveTeam; index: number }) {
-  const { state, mutate } = useLiveMatch()
+  const { state, adjust } = useLiveMatch()
   const tone = TEAM_TONES[index % TEAM_TONES.length]
   const locked = state.status === 'CLOSED'
   const isChampion = state.championTeamId === team.id
 
-  function changeTeam(stat: 'wins' | 'draws', delta: number) {
-    mutate({
-      optimistic: (current) => withTeamStat(current, team.id, stat, delta),
-      action: () => updateTeamStat(team.id, stat, delta),
-    })
+  function changeTeam(stat: TeamStat, delta: number) {
+    adjust({ scope: 'team', id: team.id, stat, delta })
   }
 
-  function changePlayer(matchPlayerId: string, stat: 'goals' | 'assists', delta: number) {
-    mutate({
-      optimistic: (current) => withPlayerStat(current, matchPlayerId, stat, delta),
-      action: () => updatePlayerStat(matchPlayerId, stat, delta),
-    })
+  function changePlayer(matchPlayerId: string, stat: PlayerStat, delta: number) {
+    adjust({ scope: 'player', id: matchPlayerId, stat, delta })
   }
 
   return (

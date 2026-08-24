@@ -25,6 +25,7 @@ export type MatchState = {
   status: MatchStatusValue
   penaltyWinnerTeamId: string | null
   championTeamId: string | null
+  version: number
   teams: LiveTeam[]
 }
 

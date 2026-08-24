@@ -158,7 +158,7 @@ export async function closeMatch(matchId: string): Promise<ActionResult<MatchSta
       ...consolidationOps(state, champion.team.id, 1),
       prisma.match.update({
         where: { id: matchId },
-        data: { status: 'CLOSED', championTeamId: champion.team.id },
+        data: { status: 'CLOSED', championTeamId: champion.team.id, version: { increment: 1 } },
       }),
     ])
 
@@ -186,7 +186,7 @@ export async function reopenMatch(matchId: string): Promise<ActionResult<MatchSt
       ...consolidationOps(state, state.championTeamId, -1),
       prisma.match.update({
         where: { id: matchId },
-        data: { status: 'OPEN', championTeamId: null },
+        data: { status: 'OPEN', championTeamId: null, version: { increment: 1 } },
       }),
     ])
 
