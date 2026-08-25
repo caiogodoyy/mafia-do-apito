@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Check, Shuffle, Sparkles, Star, Users } from 'lucide-react'
+import { Check, Search, Shuffle, Sparkles, Star, Users } from 'lucide-react'
 import { createMatch } from '@/actions/matches'
 import { MAX_PLAYERS_PER_MATCH, MAX_PLAYERS_PER_TEAM, balanceTeams } from '@/lib/balance'
 import { formatRating } from '@/lib/format'
@@ -31,6 +31,7 @@ export default function NewMatchForm({ players, defaultDate }: Props) {
   const [date, setDate] = useState(defaultDate)
   const [teamCount, setTeamCount] = useState(3)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [query, setQuery] = useState('')
   const [assignment, setAssignment] = useState<Record<string, number>>({})
   const [error, setError] = useState<string | null>(null)
 
@@ -40,6 +41,12 @@ export default function NewMatchForm({ players, defaultDate }: Props) {
     () => players.filter((player) => selectedIds.includes(player.id)),
     [players, selectedIds],
   )
+
+  const filteredPlayers = useMemo(() => {
+    const term = query.trim().toLowerCase()
+    if (!term) return players
+    return players.filter((player) => player.name.toLowerCase().includes(term))
+  }, [players, query])
 
   const teams = useMemo(() => {
     return Array.from({ length: teamCount }, (_, index) =>
@@ -217,39 +224,60 @@ export default function NewMatchForm({ players, defaultDate }: Props) {
             Cadastre jogadores antes de criar uma pelada.
           </p>
         ) : (
-          <ul className="max-h-80 divide-y divide-white/5 overflow-y-auto">
-            {players.map((player) => {
-              const checked = selectedIds.includes(player.id)
+          <>
+            <div className="relative border-b border-white/5 px-4 py-3">
+              <Search
+                size={16}
+                className="absolute left-8 top-1/2 -translate-y-1/2 text-slate-500"
+              />
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Buscar jogador"
+                className="field pl-11"
+              />
+            </div>
 
-              return (
-                <li key={player.id}>
-                  <button
-                    onClick={() => toggleSelection(player)}
-                    className="flex w-full items-center gap-3 px-4 py-3 text-left transition active:bg-white/5"
-                  >
-                    <span
-                      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border transition ${
-                        checked
-                          ? 'border-lime-400 bg-lime-400 text-pitch-950'
-                          : 'border-white/15 bg-black/30'
-                      }`}
-                    >
-                      {checked ? <Check size={14} strokeWidth={3} /> : null}
-                    </span>
+            {filteredPlayers.length === 0 ? (
+              <p className="px-4 py-8 text-center text-sm text-slate-500">
+                Nenhum jogador encontrado.
+              </p>
+            ) : (
+              <ul className="max-h-80 divide-y divide-white/5 overflow-y-auto">
+                {filteredPlayers.map((player) => {
+                  const checked = selectedIds.includes(player.id)
 
-                    <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-100">
-                      {player.name}
-                    </span>
+                  return (
+                    <li key={player.id}>
+                      <button
+                        onClick={() => toggleSelection(player)}
+                        className="flex w-full items-center gap-3 px-4 py-3 text-left transition active:bg-white/5"
+                      >
+                        <span
+                          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border transition ${
+                            checked
+                              ? 'border-lime-400 bg-lime-400 text-pitch-950'
+                              : 'border-white/15 bg-black/30'
+                          }`}
+                        >
+                          {checked ? <Check size={14} strokeWidth={3} /> : null}
+                        </span>
 
-                    <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-300">
-                      <Star size={12} className="fill-amber-400 text-amber-400" />
-                      {formatRating(player.rating)}
-                    </span>
-                  </button>
-                </li>
-              )
-            })}
-          </ul>
+                        <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-100">
+                          {player.name}
+                        </span>
+
+                        <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-300">
+                          <Star size={12} className="fill-amber-400 text-amber-400" />
+                          {formatRating(player.rating)}
+                        </span>
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </>
         )}
       </section>
 
