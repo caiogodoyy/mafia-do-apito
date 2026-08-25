@@ -1,16 +1,24 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { Crosshair, Handshake, Radio, Trophy, Users, Zap } from 'lucide-react'
+import PeriodFilter from '@/components/PeriodFilter'
 import RankingCard from '@/components/RankingCard'
 import { getRankings } from '@/actions/rankings'
 import { formatDate } from '@/lib/format'
+import { parsePeriod } from '@/lib/period'
 import { prisma } from '@/lib/prisma'
 
 export const dynamic = 'force-dynamic'
 
-export default async function HomePage() {
+type Props = {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+}
+
+export default async function HomePage({ searchParams }: Props) {
+  const period = parsePeriod((await searchParams).periodo)
+
   const [rankings, liveMatch] = await Promise.all([
-    getRankings(),
+    getRankings(period),
     prisma.match.findFirst({
       where: { status: 'OPEN' },
       orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
@@ -52,7 +60,11 @@ export default async function HomePage() {
         </Link>
       ) : null}
 
-      <main className="mt-6 grid gap-4 pb-4">
+      <div className="mt-6">
+        <PeriodFilter period={period} />
+      </div>
+
+      <main className="mt-5 grid gap-4 pb-4">
         <RankingCard
           title="Artilheiros"
           subtitle="Vezes que foi o artilheiro do dia"
@@ -79,7 +91,7 @@ export default async function HomePage() {
         />
         <RankingCard
           title="Participações em Gols"
-          subtitle="Gols + assistências na carreira"
+          subtitle="Soma de gols e assistências"
           icon={Zap}
           accent="bg-lime-400/15 text-lime-300"
           unit="pts"
@@ -93,7 +105,7 @@ export default async function HomePage() {
         <Link href="/login" aria-label="Área do administrador" className="px-1 text-slate-700 transition hover:text-slate-400">
           ·
         </Link>
-        <span>Pelada com estatística é outra coisa</span>
+        <span>Содержание, сфабрикованное диктатором Гильерме.</span>
       </footer>
     </div>
   )
