@@ -6,7 +6,9 @@ import { Pencil, Plus, Search, Trash2, UserRound } from 'lucide-react'
 import ConfirmDialog from '@/components/ConfirmDialog'
 import PlayerFormSheet from '@/components/PlayerFormSheet'
 import StarRating from '@/components/StarRating'
-import { createPlayer, deletePlayer, updatePlayer } from '@/actions/players'
+import TxtImportButton from '@/components/TxtImportButton'
+import { bulkUpdateRatings, createPlayer, deletePlayer, updatePlayer } from '@/actions/players'
+import { parseRatingList } from '@/lib/import-txt'
 import type { PlayerRow } from '@/lib/types'
 
 export default function PlayersManager({ players }: { players: PlayerRow[] }) {
@@ -18,6 +20,7 @@ export default function PlayersManager({ players }: { players: PlayerRow[] }) {
   const [removing, setRemoving] = useState<PlayerRow | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
   const [listError, setListError] = useState<string | null>(null)
+  const [importNotice, setImportNotice] = useState<string | null>(null)
 
   const filtered = players.filter((player) =>
     player.name.toLowerCase().includes(query.trim().toLowerCase()),
@@ -54,6 +57,51 @@ export default function PlayersManager({ players }: { players: PlayerRow[] }) {
     })
   }
 
+  function importRatings(content: string) {
+    setListError(null)
+    setImportNotice(null)
+
+    const { entries, invalid, duplicated } = parseRatingList(content)
+
+    if (entries.length === 0) {
+      setListError('Nenhuma linha válida no arquivo. Use o formato "Nome - 4,5".')
+      return
+    }
+
+    startTransition(async () => {
+      const result = await bulkUpdateRatings(entries)
+
+      if (!result.ok) {
+        setListError(result.error)
+        return
+      }
+
+      const summary = result.data
+      const parts = [`${summary?.updated ?? 0} jogador(es) com estrelas atualizadas`]
+
+      if (summary && summary.unchanged > 0) {
+        parts.push(`${summary.unchanged} sem alteração (estrelas já iguais)`)
+      }
+      if (summary && summary.notFound.length > 0) {
+        parts.push(
+          `${summary.notFound.length} não encontrado(s) no cadastro: ${summary.notFound.join(', ')}`,
+        )
+      }
+      if (summary && summary.invalid.length > 0) {
+        parts.push(`${summary.invalid.length} com estrelas inválidas: ${summary.invalid.join(', ')}`)
+      }
+      if (invalid.length > 0) {
+        parts.push(`${invalid.length} linha(s) fora do formato: ${invalid.join(' | ')}`)
+      }
+      if (duplicated.length > 0) {
+        parts.push(`${duplicated.length} repetido(s) no arquivo: ${duplicated.join(', ')}`)
+      }
+
+      setImportNotice(parts.join(' · '))
+      router.refresh()
+    })
+  }
+
   function handleDelete() {
     if (!removing) return
     setListError(null)
@@ -80,10 +128,23 @@ export default function PlayersManager({ players }: { players: PlayerRow[] }) {
           <p className="text-xs text-slate-500">{players.length} cadastrados</p>
         </div>
 
-        <button className="btn-primary" onClick={openCreate}>
-          <Plus size={16} />
-          Novo
-        </button>
+        <div className="flex items-center gap-2">
+          <TxtImportButton
+            label="Importar .txt"
+            className="btn-ghost px-3 py-2.5"
+            disabled={pending || players.length === 0}
+            onLoad={importRatings}
+            onError={(message) => {
+              setImportNotice(null)
+              setListError(message)
+            }}
+          />
+
+          <button className="btn-primary" onClick={openCreate}>
+            <Plus size={16} />
+            Novo
+          </button>
+        </div>
       </div>
 
       <div className="relative">
@@ -95,6 +156,12 @@ export default function PlayersManager({ players }: { players: PlayerRow[] }) {
           className="field pl-11"
         />
       </div>
+
+      {importNotice ? (
+        <p className="rounded-2xl border border-lime-400/20 bg-lime-400/10 px-4 py-3 text-xs text-lime-300">
+          {importNotice}
+        </p>
+      ) : null}
 
       {listError ? (
         <p className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">

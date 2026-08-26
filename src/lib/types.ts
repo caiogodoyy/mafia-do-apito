@@ -50,6 +50,13 @@ export type PlayerRow = {
   matchesPlayed: number
 }
 
+export type RatingImportSummary = {
+  updated: number
+  unchanged: number
+  notFound: string[]
+  invalid: string[]
+}
+
 export type RankingEntry = {
   id: string
   name: string
