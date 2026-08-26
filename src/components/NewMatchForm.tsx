@@ -1,10 +1,15 @@
 'use client'
 
-import { useMemo, useState, useTransition } from 'react'
+import { useMemo, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Check, Search, Shuffle, Sparkles, Star, Users } from 'lucide-react'
 import { createMatch } from '@/actions/matches'
-import { MAX_PLAYERS_PER_MATCH, MAX_PLAYERS_PER_TEAM, balanceTeams } from '@/lib/balance'
+import {
+  MAX_PLAYERS_PER_MATCH,
+  MAX_PLAYERS_PER_TEAM,
+  balanceTeams,
+  teamsSignature,
+} from '@/lib/balance'
 import { formatRating } from '@/lib/format'
 import type { PlayerRow } from '@/lib/types'
 
@@ -34,6 +39,8 @@ export default function NewMatchForm({ players, defaultDate }: Props) {
   const [query, setQuery] = useState('')
   const [assignment, setAssignment] = useState<Record<string, number>>({})
   const [error, setError] = useState<string | null>(null)
+  const [generated, setGenerated] = useState(false)
+  const lastDraw = useRef<string | null>(null)
 
   const maxSelectable = Math.min(MAX_PLAYERS_PER_MATCH, teamCount * MAX_PLAYERS_PER_TEAM)
 
@@ -56,8 +63,14 @@ export default function NewMatchForm({ players, defaultDate }: Props) {
 
   const unassigned = selectedPlayers.filter((player) => assignment[player.id] === undefined)
 
+  function resetDraw() {
+    lastDraw.current = null
+    setGenerated(false)
+  }
+
   function toggleSelection(player: PlayerRow) {
     setError(null)
+    resetDraw()
 
     if (selectedIds.includes(player.id)) {
       setSelectedIds(selectedIds.filter((id) => id !== player.id))
@@ -76,6 +89,7 @@ export default function NewMatchForm({ players, defaultDate }: Props) {
   }
 
   function changeTeamCount(count: number) {
+    resetDraw()
     const limit = Math.min(MAX_PLAYERS_PER_MATCH, count * MAX_PLAYERS_PER_TEAM)
 
     setError(
@@ -122,7 +136,7 @@ export default function NewMatchForm({ players, defaultDate }: Props) {
       return
     }
 
-    const distribution = balanceTeams(selectedPlayers, teamCount)
+    const distribution = balanceTeams(selectedPlayers, teamCount, { avoid: lastDraw.current })
     const next: Record<string, number> = {}
 
     distribution.forEach((teamPlayers, index) => {
@@ -131,6 +145,8 @@ export default function NewMatchForm({ players, defaultDate }: Props) {
       })
     })
 
+    lastDraw.current = teamsSignature(distribution)
+    setGenerated(true)
     setAssignment(next)
   }
 
@@ -287,7 +303,7 @@ export default function NewMatchForm({ players, defaultDate }: Props) {
             <h2 className="text-sm font-bold text-slate-100">Times</h2>
             <button className="btn-ghost px-3 py-2" onClick={generateTeams}>
               <Shuffle size={14} />
-              Gerar Times
+              {generated ? 'Sortear de novo' : 'Gerar Times'}
             </button>
           </div>
 
