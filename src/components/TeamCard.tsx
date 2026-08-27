@@ -3,6 +3,7 @@
 import { Trophy } from 'lucide-react'
 import StatStepper from '@/components/StatStepper'
 import { useLiveMatch } from '@/components/PusherProvider'
+import { teamPoints } from '@/lib/champion'
 import type { PlayerStat, TeamStat } from '@/lib/optimistic'
 import type { LiveTeam } from '@/lib/types'
 
@@ -32,7 +33,9 @@ export default function TeamCard({ team, index }: { team: LiveTeam; index: numbe
         <span className={`h-8 w-1.5 rounded-full ${tone.bar}`} />
         <div className="flex-1">
           <h2 className={`text-base font-black tracking-tight ${tone.text}`}>{team.name}</h2>
-          <p className="text-[11px] text-slate-500">{team.players.length} jogadores</p>
+          <p className="text-[11px] text-slate-500">
+            {team.players.length} jogadores · {teamPoints(team)} pts
+          </p>
         </div>
         {isChampion ? <Trophy size={18} className="text-amber-400" /> : null}
       </header>

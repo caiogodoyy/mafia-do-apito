@@ -5,12 +5,11 @@ import { Hourglass } from 'lucide-react'
 import ConfirmDialog from '@/components/ConfirmDialog'
 import { useLiveMatch } from '@/components/PusherProvider'
 import { setPenaltyWinner } from '@/actions/live'
-import { resolveChampion } from '@/lib/champion'
+import { resolveChampion, teamPoints } from '@/lib/champion'
 import type { LiveTeam } from '@/lib/types'
 
 const REASON_LABEL: Record<string, string> = {
-  WINS: 'Mais vitórias na pelada',
-  DRAWS: 'Desempate pelo número de empates',
+  POINTS: 'Mais pontos na pelada',
   PENALTY: 'Decidido nos pênaltis',
   DEFINED: 'Pelada encerrada',
 }
@@ -37,7 +36,9 @@ export default function ChampionBox() {
         <Hourglass size={20} className="text-slate-500" />
         <div>
           <p className="text-sm font-bold text-slate-200">Campeão do Dia indefinido</p>
-          <p className="text-[11px] text-slate-500">Registre as vitórias e empates dos times.</p>
+          <p className="text-[11px] text-slate-500">
+            Registre as vitórias e empates dos times. Vitória vale 3 pontos e empate 1.
+          </p>
         </div>
       </div>
     )
@@ -51,6 +52,7 @@ export default function ChampionBox() {
         </p>
         <p className="mt-1 text-[11px] font-medium text-amber-200/60">
           {REASON_LABEL[champion.reason]}
+          {champion.reason === 'POINTS' ? ` · ${teamPoints(champion.team)} pts` : ''}
         </p>
       </div>
     )
@@ -61,7 +63,7 @@ export default function ChampionBox() {
       <div className="rounded-3xl border border-orange-400/40 bg-gradient-to-br from-orange-400/20 to-orange-400/5 px-4 py-4">
         <p className="text-sm font-black text-orange-200">⚠️ Pênaltis</p>
         <p className="mt-1 text-[11px] font-medium text-orange-200/70">
-          Empate total. Toque no time que venceu a disputa.
+          Empate em pontos. Toque no time que venceu a disputa.
         </p>
 
         <div className="mt-3 flex flex-wrap items-center gap-2">

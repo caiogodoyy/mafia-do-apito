@@ -1,11 +1,18 @@
 import type { LiveTeam, MatchState } from '@/lib/types'
 
-export type ChampionReason = 'WINS' | 'DRAWS' | 'PENALTY' | 'DEFINED'
+export const WIN_POINTS = 3
+export const DRAW_POINTS = 1
+
+export type ChampionReason = 'POINTS' | 'PENALTY' | 'DEFINED'
 
 export type ChampionState =
   | { kind: 'PENDING' }
   | { kind: 'CHAMPION'; team: LiveTeam; reason: ChampionReason }
   | { kind: 'PENALTY'; teams: LiveTeam[] }
+
+export function teamPoints(team: Pick<LiveTeam, 'wins' | 'draws'>): number {
+  return team.wins * WIN_POINTS + team.draws * DRAW_POINTS
+}
 
 export function resolveChampion(match: MatchState): ChampionState {
   const teams = match.teams
@@ -17,19 +24,13 @@ export function resolveChampion(match: MatchState): ChampionState {
     if (defined) return { kind: 'CHAMPION', team: defined, reason: 'DEFINED' }
   }
 
-  const hasResults = teams.some((team) => team.wins > 0 || team.draws > 0)
+  const hasResults = teams.some((team) => teamPoints(team) > 0)
   if (!hasResults) return { kind: 'PENDING' }
 
-  const maxWins = Math.max(...teams.map((team) => team.wins))
-  let contenders = teams.filter((team) => team.wins === maxWins)
+  const maxPoints = Math.max(...teams.map(teamPoints))
+  const contenders = teams.filter((team) => teamPoints(team) === maxPoints)
   if (contenders.length === 1) {
-    return { kind: 'CHAMPION', team: contenders[0], reason: 'WINS' }
-  }
-
-  const maxDraws = Math.max(...contenders.map((team) => team.draws))
-  contenders = contenders.filter((team) => team.draws === maxDraws)
-  if (contenders.length === 1) {
-    return { kind: 'CHAMPION', team: contenders[0], reason: 'DRAWS' }
+    return { kind: 'CHAMPION', team: contenders[0], reason: 'POINTS' }
   }
 
   if (match.penaltyWinnerTeamId) {
