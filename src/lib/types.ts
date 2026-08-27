@@ -61,6 +61,7 @@ export type PlayerStatRow = {
   id: string
   name: string
   matchesPlayed: number
+  totalWins: number
   topScorerCount: number
   topAssisterCount: number
   totalGoals: number

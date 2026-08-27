@@ -27,6 +27,7 @@ async function allTimeStats(): Promise<PlayerStats> {
       id: true,
       name: true,
       matchesPlayed: true,
+      totalWins: true,
       topScorerCount: true,
       topAssisterCount: true,
       totalGoals: true,
@@ -43,10 +44,12 @@ async function rangeStats({ start, end }: PeriodRange): Promise<PlayerStats> {
     prisma.match.findMany({
       where: { status: 'CLOSED', date: { gte: start, lt: end } },
       select: {
+        championTeamId: true,
         players: {
           select: {
             goals: true,
             assists: true,
+            matchTeamId: true,
             player: { select: { id: true, name: true } },
           },
         },
@@ -65,6 +68,7 @@ async function rangeStats({ start, end }: PeriodRange): Promise<PlayerStats> {
         id: entry.player.id,
         name: entry.player.name,
         matchesPlayed: 0,
+        totalWins: 0,
         topScorerCount: 0,
         topAssisterCount: 0,
         totalGoals: 0,
@@ -72,6 +76,7 @@ async function rangeStats({ start, end }: PeriodRange): Promise<PlayerStats> {
       }
 
       current.matchesPlayed += 1
+      if (match.championTeamId && entry.matchTeamId === match.championTeamId) current.totalWins += 1
       current.totalGoals += entry.goals
       current.totalAssists += entry.assists
       if (maxGoals > 0 && entry.goals === maxGoals) current.topScorerCount += 1

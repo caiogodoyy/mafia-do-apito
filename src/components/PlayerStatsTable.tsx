@@ -24,6 +24,7 @@ type Props = {
 const COLUMN_WIDTH: Record<StatKey, string> = {
   name: '',
   matchesPlayed: 'w-8',
+  totalWins: 'w-8',
   topScorerCount: 'w-9',
   topAssisterCount: 'w-9',
   totalGoals: 'w-8',
@@ -34,6 +35,7 @@ const COLUMN_WIDTH: Record<StatKey, string> = {
 const COLUMN_PADDING: Record<StatKey, string> = {
   name: 'pl-1.5 pr-2',
   matchesPlayed: 'px-1.5',
+  totalWins: 'px-1.5',
   topScorerCount: 'px-1.5',
   topAssisterCount: 'px-1.5',
   totalGoals: 'px-1.5',
@@ -228,8 +230,8 @@ export default function PlayerStatsTable({ rows, periodLabel, isAdmin }: Props) 
       )}
 
       <footer className="border-t border-white/5 px-4 py-3 text-[11px] leading-relaxed text-slate-600">
-        PJ peladas jogadas · ART artilharias · GAR garçons · G gols · A assistências · MÉD média de
-        participação em gol
+        PJ peladas jogadas · V vitórias · ART artilharias · GAR garçons · G gols · A assistências ·
+        MÉD média de participação em gol
       </footer>
     </section>
   )

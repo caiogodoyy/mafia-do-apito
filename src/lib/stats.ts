@@ -3,6 +3,7 @@ import type { PlayerStatRow } from '@/lib/types'
 export type StatKey =
   | 'name'
   | 'matchesPlayed'
+  | 'totalWins'
   | 'topScorerCount'
   | 'topAssisterCount'
   | 'totalGoals'
@@ -25,6 +26,7 @@ export const DEFAULT_STAT_KEY: StatKey = 'totalGoals'
 export const STAT_COLUMNS: StatColumn[] = [
   { key: 'name', short: 'Jogador', label: 'Jogador', numeric: false },
   { key: 'matchesPlayed', short: 'PJ', label: 'Peladas jogadas', numeric: true },
+  { key: 'totalWins', short: 'V', label: 'Vitórias', numeric: true },
   { key: 'topScorerCount', short: 'ART', label: 'Artilharias', numeric: true },
   { key: 'topAssisterCount', short: 'GAR', label: 'Garçons', numeric: true },
   { key: 'totalGoals', short: 'G', label: 'Gols', numeric: true },
