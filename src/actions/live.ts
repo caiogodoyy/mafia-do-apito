@@ -37,12 +37,6 @@ function incrementClamped(table: 'MatchPlayer' | 'MatchTeam', column: string, id
     : prisma.$executeRaw`UPDATE "MatchTeam" SET ${target} = GREATEST(0, ${target} + ${delta}::int) WHERE "id" = ${id}`
 }
 
-export async function getMatchState(matchId: string): Promise<ActionResult<MatchState>> {
-  const state = await loadMatchState(matchId)
-  if (!state) return { ok: false, error: 'Pelada não encontrada.' }
-  return { ok: true, data: state }
-}
-
 export async function updatePlayerStat(
   matchPlayerId: string,
   stat: PlayerStat,

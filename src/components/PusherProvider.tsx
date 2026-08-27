@@ -1,13 +1,15 @@
 'use client'
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
-import { getMatchState, updatePlayerStat, updateTeamStat } from '@/actions/live'
+import { updatePlayerStat, updateTeamStat } from '@/actions/live'
+import { fetchMatchState } from '@/lib/match-api'
 import { MATCH_EVENT, getPusherClient, matchChannel } from '@/lib/pusher-client'
 import { MAX_STAT_DELTA, adjustmentKey, applyAdjustments } from '@/lib/optimistic'
 import type { Adjustment } from '@/lib/optimistic'
 import type { ActionResult, MatchState } from '@/lib/types'
 
 const FLUSH_DELAY = 350
+const SYNC_THROTTLE = 1000
 
 type Mutation = {
   preview?: (state: MatchState) => MatchState
@@ -60,6 +62,7 @@ export default function PusherProvider({ initialState, isAdmin, children }: Prop
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const ticket = useRef(0)
   const inFlight = useRef(0)
+  const lastSync = useRef(0)
 
   const render = useCallback(() => {
     const overlay: Adjustment[] = []
@@ -108,7 +111,8 @@ export default function PusherProvider({ initialState, isAdmin, children }: Prop
   }, [accept, render])
 
   const reload = useCallback(async () => {
-    const fresh = await getMatchState(matchId)
+    lastSync.current = Date.now()
+    const fresh = await fetchMatchState(matchId)
     if (fresh.ok) accept(fresh.data)
   }, [accept, matchId])
 
@@ -240,7 +244,12 @@ export default function PusherProvider({ initialState, isAdmin, children }: Prop
   useEffect(() => {
     const sync = async () => {
       if (inFlight.current > 0 || queued.current.size > 0) return
-      const result = await getMatchState(matchId)
+
+      const now = Date.now()
+      if (now - lastSync.current < SYNC_THROTTLE) return
+      lastSync.current = now
+
+      const result = await fetchMatchState(matchId)
       if (result.ok && result.data) applyRemote(result.data)
     }
 
