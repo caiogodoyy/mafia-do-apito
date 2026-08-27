@@ -14,13 +14,13 @@ import { formatRating } from '@/lib/format'
 import type { PlayerRow } from '@/lib/types'
 
 const TEAM_COLORS = [
-  'border-lime-400/40 bg-lime-400/10 text-lime-300',
+  'border-brand-400/40 bg-brand-400/10 text-brand-300',
   'border-sky-400/40 bg-sky-400/10 text-sky-300',
   'border-fuchsia-400/40 bg-fuchsia-400/10 text-fuchsia-300',
 ]
 
 const TEAM_ACTIVE = [
-  'bg-lime-400 text-pitch-950',
+  'bg-brand-400 text-pitch-950',
   'bg-sky-400 text-pitch-950',
   'bg-fuchsia-400 text-pitch-950',
 ]
@@ -214,7 +214,7 @@ export default function NewMatchForm({ players, defaultDate }: Props) {
               onClick={() => changeTeamCount(count)}
               className={`flex-1 rounded-2xl border px-4 py-3 text-sm font-semibold transition ${
                 teamCount === count
-                  ? 'border-lime-400 bg-lime-400/15 text-lime-300'
+                  ? 'border-brand-400 bg-brand-400/15 text-brand-300'
                   : 'border-white/10 bg-white/5 text-slate-400'
               }`}
             >
@@ -272,7 +272,7 @@ export default function NewMatchForm({ players, defaultDate }: Props) {
                         <span
                           className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border transition ${
                             checked
-                              ? 'border-lime-400 bg-lime-400 text-pitch-950'
+                              ? 'border-brand-400 bg-brand-900 text-slate-50'
                               : 'border-white/15 bg-black/30'
                           }`}
                         >

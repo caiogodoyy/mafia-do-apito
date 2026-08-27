@@ -22,7 +22,7 @@ export default function AdminNav() {
             key={link.href}
             href={link.href}
             className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition ${
-              active ? 'bg-lime-400 text-pitch-950' : 'text-slate-400 hover:text-slate-100'
+              active ? 'bg-brand-900 text-slate-50' : 'text-slate-400 hover:text-slate-100'
             }`}
           >
             <link.icon size={16} />

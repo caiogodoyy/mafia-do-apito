@@ -7,7 +7,7 @@ import type { PlayerStat, TeamStat } from '@/lib/optimistic'
 import type { LiveTeam } from '@/lib/types'
 
 const TEAM_TONES = [
-  { bar: 'bg-lime-400', text: 'text-lime-300', ring: 'border-lime-400/30' },
+  { bar: 'bg-brand-400', text: 'text-brand-300', ring: 'border-brand-400/30' },
   { bar: 'bg-sky-400', text: 'text-sky-300', ring: 'border-sky-400/30' },
   { bar: 'bg-fuchsia-400', text: 'text-fuchsia-300', ring: 'border-fuchsia-400/30' },
 ]

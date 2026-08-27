@@ -158,7 +158,7 @@ export default function PlayersManager({ players }: { players: PlayerRow[] }) {
       </div>
 
       {importNotice ? (
-        <p className="rounded-2xl border border-lime-400/20 bg-lime-400/10 px-4 py-3 text-xs text-lime-300">
+        <p className="rounded-2xl border border-brand-400/20 bg-brand-400/10 px-4 py-3 text-xs text-brand-300">
           {importNotice}
         </p>
       ) : null}

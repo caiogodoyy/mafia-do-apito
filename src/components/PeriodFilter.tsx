@@ -16,7 +16,7 @@ export default function PeriodFilter({ period }: { period: PeriodKey }) {
               scroll={false}
               aria-current={active ? 'page' : undefined}
               className={`flex-1 rounded-xl px-3 py-2 text-center text-sm font-semibold transition ${
-                active ? 'bg-lime-400 text-pitch-950' : 'text-slate-400 active:bg-white/5'
+                active ? 'bg-brand-900 text-slate-50' : 'text-slate-400 active:bg-white/5'
               }`}
             >
               {option.label}

@@ -65,7 +65,7 @@ export default function MatchList({ matches }: { matches: MatchSummary[] }) {
                   <span
                     className={`badge ${
                       match.status === 'OPEN'
-                        ? 'bg-lime-400/15 text-lime-300'
+                        ? 'bg-brand-400/15 text-brand-300'
                         : 'bg-white/5 text-slate-400'
                     }`}
                   >

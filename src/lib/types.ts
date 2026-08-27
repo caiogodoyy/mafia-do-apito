@@ -57,10 +57,15 @@ export type RatingImportSummary = {
   invalid: string[]
 }
 
-export type RankingEntry = {
+export type PlayerStatRow = {
   id: string
   name: string
-  value: number
+  matchesPlayed: number
+  topScorerCount: number
+  topAssisterCount: number
+  totalGoals: number
+  totalAssists: number
+  average: number
 }
 
 export type ActionResult<T = undefined> =

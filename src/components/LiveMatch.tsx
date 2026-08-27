@@ -40,7 +40,7 @@ export default function LiveMatch() {
 
         <span
           className={`badge ${
-            closed ? 'bg-white/5 text-slate-400' : 'bg-lime-400/15 text-lime-300'
+            closed ? 'bg-white/5 text-slate-400' : 'bg-brand-400/15 text-brand-300'
           }`}
         >
           {closed ? (

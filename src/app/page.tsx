@@ -1,11 +1,12 @@
 import Image from 'next/image'
 import Link from 'next/link'
-import { Crosshair, Handshake, Radio, Trophy, Users, Zap } from 'lucide-react'
+import { Radio, Users } from 'lucide-react'
 import PeriodFilter from '@/components/PeriodFilter'
-import RankingCard from '@/components/RankingCard'
-import { getRankings } from '@/actions/rankings'
+import PlayerStatsTable from '@/components/PlayerStatsTable'
+import { getPlayerStats } from '@/actions/rankings'
+import { isAdmin } from '@/lib/auth'
 import { formatDate } from '@/lib/format'
-import { parsePeriod } from '@/lib/period'
+import { parsePeriod, periodLabel } from '@/lib/period'
 import { prisma } from '@/lib/prisma'
 
 export const dynamic = 'force-dynamic'
@@ -17,13 +18,14 @@ type Props = {
 export default async function HomePage({ searchParams }: Props) {
   const period = parsePeriod((await searchParams).periodo)
 
-  const [rankings, liveMatch] = await Promise.all([
-    getRankings(period),
+  const [stats, liveMatch, admin] = await Promise.all([
+    getPlayerStats(period),
     prisma.match.findFirst({
       where: { status: 'OPEN' },
       orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
       select: { id: true, date: true },
     }),
+    isAdmin(),
   ])
 
   return (
@@ -42,7 +44,7 @@ export default async function HomePage({ searchParams }: Props) {
             Máfia do Apito
           </h1>
           <p className="mt-1 text-sm text-slate-500">
-            {rankings.totalPlayers} jogadores no elenco
+            {stats.totalPlayers} jogadores no elenco
           </p>
         </div>
       </header>
@@ -50,11 +52,11 @@ export default async function HomePage({ searchParams }: Props) {
       {liveMatch ? (
         <Link
           href={`/pelada/${liveMatch.id}`}
-          className="mt-6 flex items-center gap-3 rounded-3xl border border-lime-400/30 bg-lime-400/10 px-5 py-4 transition active:scale-[0.99]"
+          className="mt-6 flex items-center gap-3 rounded-3xl border border-brand-400/30 bg-brand-400/10 px-5 py-4 transition active:scale-[0.99]"
         >
-          <Radio size={20} className="animate-pulse-soft text-lime-400" />
+          <Radio size={20} className="animate-pulse-soft text-brand-400" />
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold text-lime-300">Pelada em andamento</p>
+            <p className="text-sm font-bold text-brand-300">Pelada em andamento</p>
             <p className="text-xs text-slate-400">{formatDate(liveMatch.date)} · toque para acompanhar</p>
           </div>
         </Link>
@@ -64,38 +66,11 @@ export default async function HomePage({ searchParams }: Props) {
         <PeriodFilter period={period} />
       </div>
 
-      <main className="mt-5 grid gap-4 pb-4">
-        <RankingCard
-          title="Artilheiros"
-          subtitle="Vezes que foi o artilheiro do dia"
-          icon={Crosshair}
-          accent="bg-red-500/15 text-red-400"
-          unit="x"
-          entries={rankings.scorers}
-        />
-        <RankingCard
-          title="Vencedores"
-          subtitle="Vezes que foi campeão do dia"
-          icon={Trophy}
-          accent="bg-amber-400/15 text-amber-300"
-          unit="x"
-          entries={rankings.winners}
-        />
-        <RankingCard
-          title="Garçons"
-          subtitle="Vezes que foi o garçom do dia"
-          icon={Handshake}
-          accent="bg-sky-400/15 text-sky-300"
-          unit="x"
-          entries={rankings.assisters}
-        />
-        <RankingCard
-          title="Participações em Gols"
-          subtitle="Soma de gols e assistências"
-          icon={Zap}
-          accent="bg-lime-400/15 text-lime-300"
-          unit="pts"
-          entries={rankings.participations}
+      <main className="mt-5 pb-4">
+        <PlayerStatsTable
+          rows={stats.players}
+          periodLabel={periodLabel(period)}
+          isAdmin={admin}
         />
       </main>
 

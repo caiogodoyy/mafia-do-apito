@@ -11,7 +11,7 @@ export default function LoginForm() {
 
   return (
     <form action={formAction} className="card w-full max-w-sm p-6">
-      <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-lime-400/15 text-lime-300">
+      <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-400/15 text-brand-300">
         <KeyRound size={22} />
       </span>
 
