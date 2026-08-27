@@ -34,6 +34,10 @@ const config: Config = {
           '0%': { opacity: '0' },
           '100%': { opacity: '1' },
         },
+        'slide-up': {
+          '0%': { opacity: '0', transform: 'translateY(100%)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
         'pulse-soft': {
           '0%, 100%': { opacity: '1' },
           '50%': { opacity: '0.55' },
@@ -42,6 +46,7 @@ const config: Config = {
       animation: {
         'pop-in': 'pop-in 0.18s ease-out',
         'fade-in': 'fade-in 0.2s ease-out',
+        'slide-up': 'slide-up 0.3s cubic-bezier(0.32, 0.72, 0, 1)',
         'pulse-soft': 'pulse-soft 2s ease-in-out infinite',
       },
     },
