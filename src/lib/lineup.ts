@@ -20,7 +20,7 @@ export function formatTeamsExport<T extends ExportPlayer>(input: {
 }) {
   const teamCount = input.teamCount ?? TEAM_COUNT
   const label = (player: T) =>
-    input.withRatings ? `${player.name} (⭐ ${formatRating(player.rating)})` : player.name
+    input.withRatings ? `${player.name} (${formatRating(player.rating)})` : player.name
   const lines = [input.date ? `⚽ *Pelada ${formatDate(parseDateInput(input.date))}*` : '⚽ *Pelada*']
 
   for (let index = 0; index < teamCount; index += 1) {
