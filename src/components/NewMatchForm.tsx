@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowDownUp, Check, Copy, Search, Shuffle, Sparkles, Star, Users } from 'lucide-react'
+import { ArrowDownUp, Check, Copy, Search, Shuffle, Sparkles, Star, StarOff, Users } from 'lucide-react'
 import { createMatch } from '@/actions/matches'
 import {
   MAX_PLAYERS_PER_MATCH,
@@ -42,7 +42,8 @@ export default function NewMatchForm({ players, defaultDate }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [generated, setGenerated] = useState(false)
   const [order, setOrder] = useState<string[]>([])
-  const [feedback, setFeedback] = useState<'copied' | null>(null)
+  const [exportOpen, setExportOpen] = useState(false)
+  const [feedback, setFeedback] = useState<'with' | 'without' | null>(null)
   const lastDraw = useRef<string | null>(null)
 
   const maxSelectable = Math.min(MAX_PLAYERS_PER_MATCH, TEAM_COUNT * MAX_PLAYERS_PER_TEAM)
@@ -149,11 +150,11 @@ export default function NewMatchForm({ players, defaultDate }: Props) {
     setOrder(sortByTeam(listedPlayers, assignment).map((player) => player.id))
   }
 
-  async function exportTeams() {
+  async function exportTeams(withRatings: boolean) {
     setError(null)
 
     const copied = await copyToClipboard(
-      formatTeamsExport({ date, players: listedPlayers, assignment }),
+      formatTeamsExport({ date, players: listedPlayers, assignment, withRatings }),
     )
 
     if (!copied) {
@@ -161,7 +162,7 @@ export default function NewMatchForm({ players, defaultDate }: Props) {
       return
     }
 
-    setFeedback('copied')
+    setFeedback(withRatings ? 'with' : 'without')
     setTimeout(() => setFeedback(null), 2500)
   }
 
@@ -306,15 +307,40 @@ export default function NewMatchForm({ players, defaultDate }: Props) {
               <ArrowDownUp size={14} className="shrink-0" />
               <span className="truncate">Ordenar</span>
             </button>
-            <button className="btn-ghost px-2 py-2 text-xs" onClick={exportTeams}>
-              {feedback === 'copied' ? (
+            <button
+              className={`btn-ghost px-2 py-2 text-xs ${exportOpen ? 'bg-white/10' : ''}`}
+              onClick={() => setExportOpen(!exportOpen)}
+              aria-expanded={exportOpen}
+            >
+              {feedback ? (
                 <Check size={14} className="shrink-0 text-brand-400" />
               ) : (
                 <Copy size={14} className="shrink-0" />
               )}
-              <span className="truncate">{feedback === 'copied' ? 'Copiado!' : 'Exportar'}</span>
+              <span className="truncate">{feedback ? 'Copiado!' : 'Exportar'}</span>
             </button>
           </div>
+
+          {exportOpen ? (
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <button className="btn-ghost px-2 py-2 text-xs" onClick={() => exportTeams(true)}>
+                {feedback === 'with' ? (
+                  <Check size={14} className="shrink-0 text-brand-400" />
+                ) : (
+                  <Star size={14} className="shrink-0 fill-amber-400 text-amber-400" />
+                )}
+                <span className="truncate">Com estrelas</span>
+              </button>
+              <button className="btn-ghost px-2 py-2 text-xs" onClick={() => exportTeams(false)}>
+                {feedback === 'without' ? (
+                  <Check size={14} className="shrink-0 text-brand-400" />
+                ) : (
+                  <StarOff size={14} className="shrink-0" />
+                )}
+                <span className="truncate">Sem estrelas</span>
+              </button>
+            </div>
+          ) : null}
 
           <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
             {teams.map((team, index) => {
