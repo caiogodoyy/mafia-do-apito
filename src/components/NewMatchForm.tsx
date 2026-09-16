@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Check, Search, Shuffle, Sparkles, Star, Users } from 'lucide-react'
+import { ArrowDownUp, Check, Copy, Search, Shuffle, Sparkles, Star, Users } from 'lucide-react'
 import { createMatch } from '@/actions/matches'
 import {
   MAX_PLAYERS_PER_MATCH,
@@ -10,7 +10,9 @@ import {
   balanceTeams,
   teamsSignature,
 } from '@/lib/balance'
+import { copyToClipboard } from '@/lib/clipboard'
 import { formatRating } from '@/lib/format'
+import { TEAM_COUNT, formatTeamsExport, sortByTeam } from '@/lib/lineup'
 import type { PlayerRow } from '@/lib/types'
 
 const TEAM_COLORS = [
@@ -34,20 +36,29 @@ export default function NewMatchForm({ players, defaultDate }: Props) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [date, setDate] = useState(defaultDate)
-  const [teamCount, setTeamCount] = useState(3)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [query, setQuery] = useState('')
   const [assignment, setAssignment] = useState<Record<string, number>>({})
   const [error, setError] = useState<string | null>(null)
   const [generated, setGenerated] = useState(false)
+  const [order, setOrder] = useState<string[]>([])
+  const [feedback, setFeedback] = useState<'copied' | null>(null)
   const lastDraw = useRef<string | null>(null)
 
-  const maxSelectable = Math.min(MAX_PLAYERS_PER_MATCH, teamCount * MAX_PLAYERS_PER_TEAM)
+  const maxSelectable = Math.min(MAX_PLAYERS_PER_MATCH, TEAM_COUNT * MAX_PLAYERS_PER_TEAM)
 
   const selectedPlayers = useMemo(
     () => players.filter((player) => selectedIds.includes(player.id)),
     [players, selectedIds],
   )
+
+  const listedPlayers = useMemo(() => {
+    const rank = new Map(order.map((id, index) => [id, index]))
+    return [...selectedPlayers].sort(
+      (a, b) =>
+        (rank.get(a.id) ?? Number.POSITIVE_INFINITY) - (rank.get(b.id) ?? Number.POSITIVE_INFINITY),
+    )
+  }, [selectedPlayers, order])
 
   const filteredPlayers = useMemo(() => {
     const term = query.trim().toLowerCase()
@@ -56,10 +67,10 @@ export default function NewMatchForm({ players, defaultDate }: Props) {
   }, [players, query])
 
   const teams = useMemo(() => {
-    return Array.from({ length: teamCount }, (_, index) =>
+    return Array.from({ length: TEAM_COUNT }, (_, index) =>
       selectedPlayers.filter((player) => assignment[player.id] === index),
     )
-  }, [teamCount, selectedPlayers, assignment])
+  }, [selectedPlayers, assignment])
 
   const unassigned = selectedPlayers.filter((player) => assignment[player.id] === undefined)
 
@@ -81,29 +92,11 @@ export default function NewMatchForm({ players, defaultDate }: Props) {
     }
 
     if (selectedIds.length >= maxSelectable) {
-      setError(`Limite de ${maxSelectable} jogadores para ${teamCount} times.`)
+      setError(`Limite de ${maxSelectable} jogadores por pelada.`)
       return
     }
 
     setSelectedIds([...selectedIds, player.id])
-  }
-
-  function changeTeamCount(count: number) {
-    resetDraw()
-    const limit = Math.min(MAX_PLAYERS_PER_MATCH, count * MAX_PLAYERS_PER_TEAM)
-
-    setError(
-      selectedIds.length > limit
-        ? `Com ${count} times o limite é ${limit} jogadores. Tire ${selectedIds.length - limit} da convocação.`
-        : null,
-    )
-    setTeamCount(count)
-
-    const next: Record<string, number> = {}
-    for (const [playerId, team] of Object.entries(assignment)) {
-      if (team < count) next[playerId] = team
-    }
-    setAssignment(next)
   }
 
   function assign(playerId: string, teamIndex: number) {
@@ -136,7 +129,7 @@ export default function NewMatchForm({ players, defaultDate }: Props) {
       return
     }
 
-    const distribution = balanceTeams(selectedPlayers, teamCount, { avoid: lastDraw.current })
+    const distribution = balanceTeams(selectedPlayers, TEAM_COUNT, { avoid: lastDraw.current })
     const next: Record<string, number> = {}
 
     distribution.forEach((teamPlayers, index) => {
@@ -148,6 +141,28 @@ export default function NewMatchForm({ players, defaultDate }: Props) {
     lastDraw.current = teamsSignature(distribution)
     setGenerated(true)
     setAssignment(next)
+    setOrder(sortByTeam(listedPlayers, next).map((player) => player.id))
+  }
+
+  function sortPlayers() {
+    setError(null)
+    setOrder(sortByTeam(listedPlayers, assignment).map((player) => player.id))
+  }
+
+  async function exportTeams() {
+    setError(null)
+
+    const copied = await copyToClipboard(
+      formatTeamsExport({ date, players: listedPlayers, assignment }),
+    )
+
+    if (!copied) {
+      setError('Não foi possível copiar os times para a área de transferência.')
+      return
+    }
+
+    setFeedback('copied')
+    setTimeout(() => setFeedback(null), 2500)
   }
 
   function submit() {
@@ -203,25 +218,6 @@ export default function NewMatchForm({ players, defaultDate }: Props) {
           onChange={(event) => setDate(event.target.value)}
           className="field mt-2"
         />
-
-        <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-slate-500">
-          Quantidade de times
-        </p>
-        <div className="mt-2 flex gap-2">
-          {[2, 3].map((count) => (
-            <button
-              key={count}
-              onClick={() => changeTeamCount(count)}
-              className={`flex-1 rounded-2xl border px-4 py-3 text-sm font-semibold transition ${
-                teamCount === count
-                  ? 'border-brand-400 bg-brand-400/15 text-brand-300'
-                  : 'border-white/10 bg-white/5 text-slate-400'
-              }`}
-            >
-              {count} times
-            </button>
-          ))}
-        </div>
       </section>
 
       <section className="card overflow-hidden">
@@ -299,11 +295,24 @@ export default function NewMatchForm({ players, defaultDate }: Props) {
 
       {selectedPlayers.length > 0 ? (
         <section className="card p-4">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-sm font-bold text-slate-100">Times</h2>
-            <button className="btn-ghost px-3 py-2" onClick={generateTeams}>
-              <Shuffle size={14} />
-              {generated ? 'Sortear de novo' : 'Gerar Times'}
+          <h2 className="text-sm font-bold text-slate-100">Times</h2>
+
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            <button className="btn-ghost px-2 py-2 text-xs" onClick={generateTeams}>
+              <Shuffle size={14} className="shrink-0" />
+              <span className="truncate">{generated ? 'Sortear' : 'Gerar Times'}</span>
+            </button>
+            <button className="btn-ghost px-2 py-2 text-xs" onClick={sortPlayers}>
+              <ArrowDownUp size={14} className="shrink-0" />
+              <span className="truncate">Ordenar</span>
+            </button>
+            <button className="btn-ghost px-2 py-2 text-xs" onClick={exportTeams}>
+              {feedback === 'copied' ? (
+                <Check size={14} className="shrink-0 text-brand-400" />
+              ) : (
+                <Copy size={14} className="shrink-0" />
+              )}
+              <span className="truncate">{feedback === 'copied' ? 'Copiado!' : 'Exportar'}</span>
             </button>
           </div>
 
@@ -323,12 +332,12 @@ export default function NewMatchForm({ players, defaultDate }: Props) {
           </div>
 
           <ul className="mt-4 space-y-2">
-            {selectedPlayers.map((player) => (
+            {listedPlayers.map((player) => (
               <li key={player.id} className="flex items-center gap-2">
                 <span className="min-w-0 flex-1 truncate text-sm text-slate-200">{player.name}</span>
 
                 <span className="flex gap-1">
-                  {Array.from({ length: teamCount }, (_, index) => {
+                  {Array.from({ length: TEAM_COUNT }, (_, index) => {
                     const active = assignment[player.id] === index
 
                     return (

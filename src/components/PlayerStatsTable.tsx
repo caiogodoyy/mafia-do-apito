@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { BarChart3, Check, ChevronDown, ChevronUp, Copy } from 'lucide-react'
+import { copyToClipboard } from '@/lib/clipboard'
 import {
   DEFAULT_STAT_KEY,
   STATS_LIMIT,
@@ -46,29 +47,6 @@ const COLUMN_PADDING: Record<StatKey, string> = {
 const RANK_PADDING = 'pl-4 pr-1.5'
 
 const RANK_COLOR = ['text-amber-300', 'text-slate-300', 'text-orange-300']
-
-async function copyToClipboard(text: string) {
-  try {
-    await navigator.clipboard.writeText(text)
-    return true
-  } catch {
-    const area = document.createElement('textarea')
-    area.value = text
-    area.setAttribute('readonly', '')
-    area.style.position = 'fixed'
-    area.style.opacity = '0'
-    document.body.appendChild(area)
-    area.select()
-
-    try {
-      return document.execCommand('copy')
-    } catch {
-      return false
-    } finally {
-      document.body.removeChild(area)
-    }
-  }
-}
 
 export default function PlayerStatsTable({ rows, periodLabel, isAdmin }: Props) {
   const [sortKey, setSortKey] = useState<StatKey>(DEFAULT_STAT_KEY)
