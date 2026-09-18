@@ -1,12 +1,14 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { after } from 'next/server'
 import { requireAdmin } from '@/lib/auth'
 import { resolveChampion } from '@/lib/champion'
 import { MAX_PLAYERS_PER_MATCH, MAX_PLAYERS_PER_TEAM } from '@/lib/balance'
 import { loadMatchState, matchInclude, serializeMatch } from '@/lib/match-state'
 import { parseDateInput } from '@/lib/format'
 import { broadcastMatch } from '@/lib/pusher'
+import { backupMatch } from '@/lib/sheets'
 import { prisma } from '@/lib/prisma'
 import type { ActionResult, MatchSummary, MatchState } from '@/lib/types'
 
@@ -163,7 +165,10 @@ export async function closeMatch(matchId: string): Promise<ActionResult<MatchSta
     ])
 
     const updated = await loadMatchState(matchId)
-    if (updated) await broadcastMatch(updated)
+    if (updated) {
+      await broadcastMatch(updated)
+      after(() => backupMatch(updated))
+    }
     refresh(matchId)
 
     return { ok: true, data: updated ?? undefined }
