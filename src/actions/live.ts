@@ -2,6 +2,7 @@
 
 import { Prisma } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
+import { requireAdmin } from '@/lib/auth'
 import { resolveChampion } from '@/lib/champion'
 import { loadMatchState } from '@/lib/match-state'
 import { isValidDelta } from '@/lib/optimistic'
@@ -43,6 +44,8 @@ export async function updatePlayerStat(
   delta: number,
 ): Promise<ActionResult<MatchState>> {
   try {
+    await requireAdmin()
+
     if (stat !== 'goals' && stat !== 'assists') {
       return { ok: false, error: 'Estatística inválida.' }
     }
@@ -78,6 +81,8 @@ export async function updateTeamStat(
   delta: number,
 ): Promise<ActionResult<MatchState>> {
   try {
+    await requireAdmin()
+
     if (stat !== 'wins' && stat !== 'draws') {
       return { ok: false, error: 'Estatística inválida.' }
     }
@@ -112,6 +117,8 @@ export async function setPenaltyWinner(
   matchTeamId: string,
 ): Promise<ActionResult<MatchState>> {
   try {
+    await requireAdmin()
+
     const state = await loadMatchState(matchId)
     if (!state) return { ok: false, error: 'Pelada não encontrada.' }
     if (state.status === 'CLOSED') {

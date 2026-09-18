@@ -7,15 +7,16 @@ Você atua como um Engenheiro de Software Sênior neste projeto. A "Máfia do Ap
 - **Banco de Dados:** PostgreSQL (Neon) com Prisma ORM 5.
 - **Autenticação:** cookie httpOnly `mafia_admin` contendo o hash SHA-256 da variável `ADMIN_PASSWORD` (apenas 1 admin). Comparação com `timingSafeEqual`. Helpers em `src/lib/auth.ts` (`isAdmin`, `requireAdmin`, `startAdminSession`, `endAdminSession`).
 - **Tempo Real:** Pusher (WebSockets) na página da pelada. Nada de polling: a Server Action grava no banco, incrementa `Match.version` e emite o estado completo no canal `pelada-<matchId>` (evento `match:update`). Se as variáveis do Pusher não estiverem configuradas, o broadcast é silenciosamente ignorado e a UI continua funcionando via Server Actions.
+- **Backup:** ao encerrar uma pelada, as linhas consolidadas são espelhadas em uma planilha do Google Sheets (`src/lib/sheets.ts`), disparado por `after()` (do `next/server`) para ficar fora do caminho da resposta. Autenticação por service account — JWT RS256 assinado com `node:crypto` + API REST, sem dependência nova. Variáveis: `GOOGLE_SHEETS_ID`, `GOOGLE_SHEETS_CLIENT_EMAIL`, `GOOGLE_SHEETS_PRIVATE_KEY`, `GOOGLE_SHEETS_TAB`. Se não estiverem configuradas, o backup é silenciosamente ignorado.
 - **PWA:** manifest + instruções de instalação no iOS (`IosInstallSheet`, `src/lib/pwa.ts`).
 
 ## ESTRUTURA DE PASTAS
 - `prisma/`: `schema.prisma` e `migrations/`.
 - `src/app/`: rotas e layouts.
-  - `/` dashboard público, `/login`, `/admin/peladas`, `/admin/peladas/nova`, `/admin/jogadores`, `/pelada/[uuid]`.
+  - `/` dashboard público, `/login`, `/admin/peladas`, `/admin/peladas/nova`, `/admin/jogadores`, `/pelada/[uuid]` (restrita ao admin), `GET /api/pelada/[uuid]/state` (restrita ao admin).
 - `src/actions/`: Server Actions — `auth.ts`, `players.ts`, `matches.ts` (CRUD/encerramento), `live.ts` (mutações ao vivo), `rankings.ts` (estatísticas).
 - `src/components/`: componentes de UI (`PusherProvider`, `LiveMatch`, `TeamCard`, `ChampionBox`, `StatStepper`, `PlayerStatsTable`, `NewMatchForm`, `PlayersManager`, `ConfirmDialog`, etc.).
-- `src/lib/`: regras puras e instâncias globais — `prisma.ts`, `pusher.ts` / `pusher-client.ts`, `champion.ts` (campeão do dia), `balance.ts` (geração de times), `optimistic.ts` (UI otimista), `match-state.ts` (serialização do estado), `stats.ts`, `period.ts`, `import-txt.ts`, `format.ts`, `auth.ts`, `pwa.ts`, `types.ts`.
+- `src/lib/`: regras puras e instâncias globais — `prisma.ts`, `pusher.ts` / `pusher-client.ts`, `champion.ts` (campeão do dia), `balance.ts` (geração de times), `optimistic.ts` (UI otimista), `match-state.ts` (serialização do estado), `sheets.ts` (envio ao Google Sheets), `match-backup.ts` (linhas puras da planilha), `stats.ts`, `period.ts`, `import-txt.ts`, `format.ts`, `auth.ts`, `pwa.ts`, `types.ts`.
 
 ## RESTRIÇÕES E SEGURANÇA (O QUE NÃO FAZER)
 - 🚫 **NUNCA** comitar, sugerir comitar ou expor arquivos `.env`, `.env.local` ou quaisquer chaves secretas.
@@ -24,12 +25,21 @@ Você atua como um Engenheiro de Software Sênior neste projeto. A "Máfia do Ap
 - 🚫 **NUNCA** rodar comandos de instalação de dependências automaticamente. Apenas forneça o comando (ex: `npm install pacote`).
 - 🚫 **NUNCA** adicionar comentários no código.
 
+## CONTROLE DE ACESSO
+- **Quem não é admin só acessa o dashboard público (`/`) e o `/login`. Nada mais.**
+- `/admin/*` e `/pelada/[uuid]` exigem sessão de admin; sem cookie válido a rota redireciona para `/login`.
+- `GET /api/pelada/[uuid]/state` responde `401` para quem não é admin.
+- Toda Server Action que toca pelada ou jogador chama `requireAdmin()` — incluindo as mutações ao vivo (`live.ts`) e as listagens (`listMatches`, `listPlayers`). Server Action sem guarda é endpoint público: qualquer arquivo com `'use server'` é chamável de fora, então a checagem vai na action, nunca só na UI.
+- A única leitura pública é `getPlayerStats` (`src/actions/rankings.ts`), que por isso é módulo comum **sem** `'use server'` e alimenta apenas o dashboard.
+- Nenhuma informação sobre pelada em andamento vaza para visitante — nem o banner, nem a consulta ao banco.
+- ⚠️ Limitação conhecida: o canal do Pusher (`pelada-<matchId>`) ainda é público. Quem souber o `matchId` e a `NEXT_PUBLIC_PUSHER_KEY` consegue assinar por fora do app. Fechar exige canal privado (`private-pelada-<id>`) + endpoint de autorização.
+
 ## REGRAS DE NEGÓCIO E ROTAS
 
 ### 1. Dashboard Público (`/`)
 - Tabela de estatísticas ordenável (`PlayerStatsTable`), limitada a `STATS_LIMIT` (20) linhas, com colunas: PJ (peladas jogadas), ART (artilharias), GAR (garçons), G (gols), A (assistências) e MÉD (média de participação em gol = (gols + assistências) / peladas jogadas). Ordenação padrão por gols.
 - Filtro de período (`PeriodFilter`): **Mês**, **Ano** e **Geral**. "Geral" lê os totais acumulados em `Player`; os demais recalculam a partir das peladas encerradas dentro do intervalo.
-- Banner "Pelada em andamento" quando existe uma `Match` com status `OPEN`.
+- Banner "Pelada em andamento" **apenas para o admin logado**, quando existe uma `Match` com status `OPEN`. Para visitante o banner não aparece e a consulta nem é feita.
 - Admin logado enxerga um botão de exportar/copiar a tabela.
 - Link escondido para `/login` no rodapé.
 
@@ -39,8 +49,8 @@ Você atua como um Engenheiro de Software Sênior neste projeto. A "Máfia do Ap
 - **`/admin/peladas/nova`**: data, seleção de até `MAX_PLAYERS_PER_MATCH` (18) jogadores e divisão em times de no máximo `MAX_PLAYERS_PER_TEAM` (6). Divisão manual ou botão "Gerar Times" (`src/lib/balance.ts`): algoritmo que gera candidatos com seed pseudoaleatório, minimiza a diferença entre a soma de ratings dos times e evita repetir a divisão anterior (`teamsSignature` + penalidade de repetição), produzindo uma divisão diferente a cada clique.
 
 ### 3. Pelada Ao Vivo (`/pelada/[uuid]`)
-- Acesso livre para acompanhar e interagir; sincronização em tempo real via Pusher (`PusherProvider`).
-- Qualquer pessoa altera Gols/Assistências dos jogadores e Vitórias/Empates dos times pelos botões `+` / `-`.
+- **Restrita ao admin** — sem sessão válida a rota redireciona para `/login`. Sincronização em tempo real via Pusher (`PusherProvider`), que continua útil para o admin acompanhar de mais de um dispositivo.
+- O admin altera Gols/Assistências dos jogadores e Vitórias/Empates dos times pelos botões `+` / `-`. As três actions de `live.ts` (`updatePlayerStat`, `updateTeamStat`, `setPenaltyWinner`) começam com `requireAdmin()`.
 - A UI é otimista (`src/lib/optimistic.ts`): o estado local aplica o delta na hora e é reconciliado pelo retorno da Server Action ou pelo evento do Pusher. Os incrementos no banco usam `GREATEST(0, ...)` — nenhum contador fica negativo.
 - Qualquer alteração de vitórias/empates limpa o `penaltyWinnerTeamId`, forçando nova decisão se o empate voltar a existir.
 - Apenas o Admin pode "Encerrar Pelada" ou reabri-la.
@@ -54,6 +64,8 @@ Ao encerrar (`closeMatch` em `src/actions/matches.ts`), os dados consolidam no h
 5. Os jogadores do **Campeão do Dia** recebem +1 em `totalWins`.
 
 Não é possível encerrar sem nenhum resultado registrado nem com uma disputa de pênaltis pendente. Reabrir a pelada (`reopenMatch`) aplica exatamente as mesmas operações com sinal invertido, estornando o histórico.
+
+**Backup no Google Sheets:** depois que a resposta é enviada, `after(() => backupMatch(state))` espelha a pelada na planilha — uma linha por jogador (`Data · Pelada · Time · Vitórias · Empates · Pontos · Campeão · Jogador · Gols · Assistências · Artilheiro · Garçom · Registrado em`), montada por `matchBackupRows` com as mesmas regras de artilheiro/garçom da consolidação. O envio é idempotente: encerrar de novo uma pelada reaberta apaga as linhas daquele `matchId` (busca pelo id na coluna B) e regrava, em vez de duplicar. A aba e o cabeçalho são criados sozinhos na primeira execução. Falha no backup **nunca** impede o encerramento — só vai para o `console.error`. `reopenMatch` e `deleteMatch` não mexem na planilha, por ser backup; o próximo encerramento ressincroniza.
 
 ### 5. Campeão do Dia — Pontos Corridos (`src/lib/champion.ts`)
 - **Pontuação:** vitória vale **3 pontos** (`WIN_POINTS`) e empate vale **1 ponto** (`DRAW_POINTS`). A pontuação do time é `wins * 3 + draws * 1` (`teamPoints`).
@@ -71,7 +83,7 @@ Não é possível encerrar sem nenhum resultado registrado nem com uma disputa d
 
 ## DIRETRIZES
 - Código limpo e modular. Regra de negócio pura fica em `src/lib/`, acesso ao banco em `src/actions/`, UI em `src/components/`.
-- Server Actions sempre retornam `ActionResult<T>` (`{ ok: true, data }` ou `{ ok: false, error }`) com mensagem em português; nada de exceção vazando para o cliente.
+- Server Actions de mutação sempre retornam `ActionResult<T>` (`{ ok: true, data }` ou `{ ok: false, error }`) com mensagem em português; nada de exceção vazando para o cliente — o `requireAdmin()` cai no `catch` e vira `{ ok: false, error: 'Acesso restrito ao administrador.' }`. As listagens usadas como loader de página (`listMatches`, `listPlayers`) fogem dessa regra: devolvem os dados direto e lançam se quem chamou não for admin.
 - Tratamento de erros de UI (ex: estourar o limite de 6 pessoas por time).
 - Design mobile-first com Tailwind, visual moderno de app nativo, tema escuro, idioma Português do Brasil.
 

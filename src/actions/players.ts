@@ -25,6 +25,8 @@ function refresh() {
 }
 
 export async function listPlayers(): Promise<PlayerRow[]> {
+  await requireAdmin()
+
   return prisma.player.findMany({
     orderBy: { name: 'asc' },
     select: {

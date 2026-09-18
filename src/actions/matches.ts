@@ -50,6 +50,8 @@ function consolidationOps(state: MatchState, championTeamId: string | null, dire
 }
 
 export async function listMatches(): Promise<MatchSummary[]> {
+  await requireAdmin()
+
   const matches = await prisma.match.findMany({
     orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
     include: {

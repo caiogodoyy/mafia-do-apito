@@ -18,14 +18,17 @@ type Props = {
 export default async function HomePage({ searchParams }: Props) {
   const period = parsePeriod((await searchParams).periodo)
 
-  const [stats, liveMatch, admin] = await Promise.all([
+  const admin = await isAdmin()
+
+  const [stats, liveMatch] = await Promise.all([
     getPlayerStats(period),
-    prisma.match.findFirst({
-      where: { status: 'OPEN' },
-      orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
-      select: { id: true, date: true },
-    }),
-    isAdmin(),
+    admin
+      ? prisma.match.findFirst({
+          where: { status: 'OPEN' },
+          orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
+          select: { id: true, date: true },
+        })
+      : null,
   ])
 
   return (
