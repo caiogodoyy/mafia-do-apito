@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { AlertCircle, ChevronLeft, Lock, LockOpen, Radio, X } from 'lucide-react'
 import ChampionBox from '@/components/ChampionBox'
 import ConfirmDialog from '@/components/ConfirmDialog'
+import MatchTimer from '@/components/MatchTimer'
 import TeamCard from '@/components/TeamCard'
 import { useLiveMatch } from '@/components/PusherProvider'
 import { closeMatch, reopenMatch } from '@/actions/matches'
@@ -70,6 +71,12 @@ export default function LiveMatch() {
           </button>
         </div>
       ) : null}
+
+      {closed ? null : (
+        <div className="mt-3">
+          <MatchTimer />
+        </div>
+      )}
 
       <main className="mt-3 grid gap-4">
         {state.teams.map((team, index) => (
